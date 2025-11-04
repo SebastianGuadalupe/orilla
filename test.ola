@@ -1,0 +1,20 @@
+let x: Double = 15;
+
+print("The value of x is: %f\n", x);
+
+{
+    let y: Int = 10;
+    print("The value of y is: %d\n", y);
+    let x: Int = y + 1;
+    print("The value of x inside the scope is: %d\n", x);
+}
+
+print("The value of x is: %f\n", x);
+
+if (10 > 10.5) print("10 is greater than 10.5\n") else print("10 is less than 10.5\n");
+
+if (100 > 0) {
+    print("This condition is true\n");
+} else {
+    print("This condition is false\n");
+}
