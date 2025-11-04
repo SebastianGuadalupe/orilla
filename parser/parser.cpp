@@ -579,7 +579,7 @@ NodePtr parseLet(const std::vector<Token> &tokens, size_t &pos,
     if (!identifier.type.has_value()) {
       throw std::runtime_error(
           "Variable '" + identifier.identifier +
-          "' must have a type annotation or initial value");
+          "' must have a type annotation or an assignment");
     }
     identifiers.push_back(
         IdentifierInfo{identifier.identifier, identifier.type});
@@ -613,9 +613,7 @@ NodePtr parseLet(const std::vector<Token> &tokens, size_t &pos,
       identifier.type = inferredType;
     }
 
-    ++pos;
-
-    if (std::holds_alternative<TokenStatementTerminator>(
+    if (!std::holds_alternative<TokenStatementTerminator>(
             current(tokens, pos))) {
       throw std::runtime_error("Expected ';' after variable declaration");
     }
