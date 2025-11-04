@@ -61,12 +61,16 @@ struct NodeIf {
   std::optional<NodePtr> elseBranch;
 };
 struct NodeElse {};
-struct Node : std::variant<NodeProg, NodeExit, NodeIdentifier, NodeBinaryOp,
-                           NodeInteger, NodeDecimal, NodeString,
-                           NodeFunctionCall, NodeScope, NodeIf, NodeElse> {
+struct NodeBoolean {
+  bool value;
+};
+struct Node
+    : std::variant<NodeProg, NodeExit, NodeIdentifier, NodeBinaryOp,
+                   NodeInteger, NodeDecimal, NodeString, NodeFunctionCall,
+                   NodeScope, NodeIf, NodeElse, NodeBoolean> {
   using std::variant<NodeProg, NodeExit, NodeIdentifier, NodeBinaryOp,
                      NodeInteger, NodeDecimal, NodeString, NodeFunctionCall,
-                     NodeScope, NodeIf, NodeElse>::variant;
+                     NodeScope, NodeIf, NodeElse, NodeBoolean>::variant;
 };
 
 struct IdentifierInfo {

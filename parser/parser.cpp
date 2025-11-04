@@ -217,6 +217,16 @@ NodePtr parseFactor(const std::vector<Token> &tokens, size_t &pos) {
     return std::make_unique<Node>(NodeString{stringToken->value});
   }
 
+  if (std::holds_alternative<TokenKeyword>(token)) {
+    if (std::get<TokenKeyword>(token).keyword == KeywordType::True) {
+      ++pos;
+      return std::make_unique<Node>(NodeBoolean{true});
+    } else if (std::get<TokenKeyword>(token).keyword == KeywordType::False) {
+      ++pos;
+      return std::make_unique<Node>(NodeBoolean{false});
+    }
+  }
+
   if (std::holds_alternative<TokenOpenParen>(token)) {
     ++pos;
     auto expr = parseExpression(tokens, pos);
@@ -497,6 +507,8 @@ inferType(const NodePtr &node, const std::vector<IdentifierInfo> &identifiers) {
           return TypeKeyword::Double;
         } else if constexpr (std::is_same_v<T, NodeString>) {
           return TypeKeyword::String;
+        } else if constexpr (std::is_same_v<T, NodeBoolean>) {
+          return TypeKeyword::Bool;
         } else if constexpr (std::is_same_v<T, NodeIdentifier>) {
           if (arg.type.has_value()) {
             return arg.type.value();
@@ -520,7 +532,8 @@ inferType(const NodePtr &node, const std::vector<IdentifierInfo> &identifiers) {
                              std::is_same_v<T, NodeFunctionCall> ||
                              std::is_same_v<T, NodeScope> ||
                              std::is_same_v<T, NodeIf> ||
-                             std::is_same_v<T, NodeElse>) {
+                             std::is_same_v<T, NodeElse> ||
+                             std::is_same_v<T, NodeBoolean>) {
           return std::nullopt;
         } else {
           static_assert(sizeof(T) == 0, "Unhandled type in inferType");
@@ -642,8 +655,14 @@ NodePtr parseIf(const std::vector<Token> &tokens, size_t &pos,
     if (std::holds_alternative<TokenKeyword>(current(tokens, pos))) {
       if (std::get<TokenKeyword>(current(tokens, pos)).keyword == KeywordType::Else) {
         ++pos;
-        std::vector<NodePtr> elseBranchStatements = parseStatements(tokens, pos, identifiers, [](const Token &token) { return std::holds_alternative<TokenCloseCurlyBracket>(token); });
-        elseBranch = std::make_unique<Node>(NodeScope{std::move(elseBranchStatements)});
+        if (std::holds_alternative<TokenOpenCurlyBracket>(current(tokens, pos))) {
+          ++pos;
+          std::vector<NodePtr> elseBranchStatements = parseStatements(tokens, pos, identifiers, [](const Token &token) { return std::holds_alternative<TokenCloseCurlyBracket>(token); });
+          elseBranch = std::make_unique<Node>(NodeScope{std::move(elseBranchStatements)});
+          ++pos;
+        } else {
+          elseBranch = parseExpression(tokens, pos);
+        }
       } else {
         elseBranch = parseExpression(tokens, pos);
         if (!std::holds_alternative<TokenStatementTerminator>(current(tokens, pos))) {

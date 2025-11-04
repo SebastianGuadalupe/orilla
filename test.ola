@@ -18,3 +18,6 @@ if (100 > 0) {
 } else {
     print("This condition is false\n");
 }
+print("--------------------------------\n");
+let bool: Bool = false;
+if (bool) print("bool is true\n") else print("bool is false\n");

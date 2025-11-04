@@ -9,7 +9,7 @@
 
 #include "../types/types.h"
 
-enum class KeywordType { Exit, Let, If, Else };
+enum class KeywordType { Exit, Let, If, Else, True, False };
 
 struct TokenKeyword {
   KeywordType keyword;
@@ -77,6 +77,8 @@ const std::unordered_map<std::string, KeywordType> keywordMap = {
     {"exit", KeywordType::Exit},
     {"let", KeywordType::Let},
     {"if", KeywordType::If},
-    {"else", KeywordType::Else}};
+    {"else", KeywordType::Else},
+    {"true", KeywordType::True},
+    {"false", KeywordType::False}};
 
 std::vector<Token> tokenize(const std::string &input);

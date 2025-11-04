@@ -88,6 +88,10 @@ void generateProg(const NodeProg &prog, llvm::LLVMContext &Context,
       return Builder.CreateGlobalString(string.value.c_str(), "str");
     }
 
+    llvm::Value *generateExprValue(const NodeBoolean &boolean) const {
+      return llvm::ConstantInt::get(llvm::Type::getInt1Ty(Context), boolean.value);
+    }
+
     llvm::Value *generateExprValue(const NodeIdentifier &ident) {
       if (NamedValues.find(ident.identifier) == NamedValues.end()) {
         llvm::errs() << "Error: Undefined variable '" << ident.identifier
@@ -153,6 +157,10 @@ void generateProg(const NodeProg &prog, llvm::LLVMContext &Context,
         if (left->getType()->isFloatingPointTy())
           return Builder.CreateFCmpUEQ(left, right, "cmptmp");
         return Builder.CreateICmpEQ(left, right, "cmptmp");
+      } else if (op.op == "&&") {
+        return Builder.CreateAnd(left, right, "andtmp");
+      } else if (op.op == "||") {
+        return Builder.CreateOr(left, right, "ortmp");
       }
       llvm::errs() << "Error: Unknown binary operator '" << op.op << "'\n";
       return nullptr;
@@ -199,6 +207,10 @@ void generateProg(const NodeProg &prog, llvm::LLVMContext &Context,
 
     llvm::Value *generateExprValue(const NodeElse & /*else*/) {
       return nullptr;
+    }
+
+    llvm::Value *generateExprValue(const NodeBoolean &boolean) {
+      return llvm::ConstantInt::get(llvm::Type::getInt1Ty(Context), boolean.value);
     }
 
     llvm::Value *generateExprValue(const NodeExit & /*exit*/) {
@@ -270,7 +282,13 @@ void generateProg(const NodeProg &prog, llvm::LLVMContext &Context,
       generateExprValue(string);
     }
 
-    void operator()(const NodeFunctionCall &func) { generateExprValue(func); }
+    void operator()(const NodeBoolean &boolean) const {
+      generateExprValue(boolean);
+    }
+
+    void operator()(const NodeFunctionCall &func) {
+      generateExprValue(func);
+    }
 
     void operator()(const NodeScope &scope) const {
       std::unordered_map<std::string, llvm::AllocaInst *> scopeNamedValues =
@@ -331,7 +349,8 @@ void generateProg(const NodeProg &prog, llvm::LLVMContext &Context,
       std::visit(StatementGenerator{Context, TheModule, Builder,
                                     thenNamedValues, LibCFunctionMap},
                  *ifStmt.thenBranch);
-      bool thenTerminates = thenBB->getTerminator() != nullptr;
+      llvm::BasicBlock *actualThenBB = Builder.GetInsertBlock();
+      bool thenTerminates = (actualThenBB && actualThenBB->getTerminator() != nullptr);
 
       Builder.SetInsertPoint(elseBB);
       if (ifStmt.elseBranch.has_value()) {
@@ -341,18 +360,20 @@ void generateProg(const NodeProg &prog, llvm::LLVMContext &Context,
                                       elseNamedValues, LibCFunctionMap},
                    *ifStmt.elseBranch->get());
       }
-      bool elseTerminates = elseBB->getTerminator() != nullptr;
+
+      llvm::BasicBlock *actualElseBB = Builder.GetInsertBlock();
+      bool elseTerminates = (actualElseBB && actualElseBB->getTerminator() != nullptr);
 
       if (!thenTerminates || !elseTerminates) {
         mergeBB =
             llvm::BasicBlock::Create(Context, "merge", currentBB->getParent());
 
-        if (!thenTerminates) {
-          Builder.SetInsertPoint(thenBB);
+        if (!thenTerminates && actualThenBB) {
+          Builder.SetInsertPoint(actualThenBB);
           Builder.CreateBr(mergeBB);
         }
-        if (!elseTerminates) {
-          Builder.SetInsertPoint(elseBB);
+        if (!elseTerminates && actualElseBB) {
+          Builder.SetInsertPoint(actualElseBB);
           Builder.CreateBr(mergeBB);
         }
 
@@ -423,10 +444,12 @@ bool generate(NodeProg prog, const std::string &outputPath) {
 
   generator::generateProg(prog, Context, TheModule.get(), Builder, mainFunc);
 
-  llvm::BasicBlock *currentBlock = Builder.GetInsertBlock();
-  if (currentBlock && !currentBlock->getTerminator()) {
-    Builder.CreateRet(
-        llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0));
+  for (llvm::BasicBlock &BB : *mainFunc) {
+    if (!BB.getTerminator()) {
+      Builder.SetInsertPoint(&BB);
+      Builder.CreateRet(
+          llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0));
+    }
   }
 
   if (llvm::verifyModule(*TheModule, &llvm::errs())) {
