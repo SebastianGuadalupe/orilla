@@ -297,6 +297,10 @@ void generateProg(const NodeProg &prog, llvm::LLVMContext &Context,
         std::visit(StatementGenerator{Context, TheModule, Builder,
                                       scopeNamedValues, LibCFunctionMap},
                    *statement);
+        llvm::BasicBlock *currentBB = Builder.GetInsertBlock();
+        if (currentBB && currentBB->getTerminator()) {
+          break;
+        }
       }
     }
 
@@ -326,6 +330,10 @@ void generateProg(const NodeProg &prog, llvm::LLVMContext &Context,
     void operator()(const NodeProg &prog) {
       for (const auto &statement : prog.statements) {
         std::visit(*this, *statement);
+        llvm::BasicBlock *currentBB = Builder.GetInsertBlock();
+        if (currentBB && currentBB->getTerminator()) {
+          break;
+        }
       }
     }
 

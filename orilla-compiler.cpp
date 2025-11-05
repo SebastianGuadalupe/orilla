@@ -59,8 +59,7 @@ int main(const int argc, char const *argv[]) {
   std::string compileCmd = "clang " + outputPath + " -o " + executableName;
   std::system(compileCmd.c_str());
 
-  std::string rmCmd = "rm " + outputPath;
-  std::system(rmCmd.c_str());
+  std::filesystem::remove(outputPath);
 
   return 0;
 }

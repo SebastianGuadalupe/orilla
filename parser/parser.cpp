@@ -249,20 +249,18 @@ NodePtr parseFactor(const std::vector<Token> &tokens, size_t &pos) {
 
       std::vector<NodePtr> arguments;
 
-      if (!std::holds_alternative<TokenCloseParen>(current(tokens, pos))) {
-        while (true) {
-          arguments.push_back(parseExpression(tokens, pos));
+      while (!std::holds_alternative<TokenCloseParen>(current(tokens, pos))) {
+        arguments.push_back(parseExpression(tokens, pos));
 
-          if (std::holds_alternative<TokenCloseParen>(current(tokens, pos))) {
-            break;
-          }
-
-          if (!std::holds_alternative<TokenComma>(current(tokens, pos))) {
-            throw std::runtime_error(
-                "Expected ',' or ')' after function argument");
-          }
-          ++pos;
+        if (std::holds_alternative<TokenCloseParen>(current(tokens, pos))) {
+          break;
         }
+
+        if (!std::holds_alternative<TokenComma>(current(tokens, pos))) {
+          throw std::runtime_error(
+              "Expected ',' or ')' after function argument");
+        }
+        ++pos;
       }
 
       if (!std::holds_alternative<TokenCloseParen>(current(tokens, pos))) {
@@ -476,19 +474,26 @@ NodePtr parseExit(const std::vector<Token> &tokens, size_t &pos) {
   ++pos;
 
   NodePtr expr = nullptr;
-  if (pos < tokens.size() &&
-      (std::holds_alternative<TokenInteger>(current(tokens, pos)) ||
-       std::holds_alternative<TokenDecimal>(current(tokens, pos)) ||
-       std::holds_alternative<TokenOpenParen>(current(tokens, pos)) ||
-       std::holds_alternative<TokenIdentifier>(current(tokens, pos)))) {
-    expr = parseExpression(tokens, pos);
-  }
+  if (std::holds_alternative<TokenOpenParen>(current(tokens, pos))) {
+    ++pos;
+    if (std::holds_alternative<TokenCloseParen>(current(tokens, pos))) {
+      expr = std::make_unique<Node>(NodeInteger{0});
+    } else {
+      expr = parseExpression(tokens, pos);
+    }
+    if (!std::holds_alternative<TokenCloseParen>(current(tokens, pos))) {
+      throw std::runtime_error("Expected ')' after exit expression");
+    }
+    ++pos;
 
-  if (!std::holds_alternative<TokenStatementTerminator>(current(tokens, pos))) {
-    throw std::runtime_error("Missing ';' after exit statement");
+    if (!std::holds_alternative<TokenStatementTerminator>(current(tokens, pos))) {
+      throw std::runtime_error("Missing ';' after exit statement");
+    }
+  
+    return std::make_unique<Node>(NodeExit{std::move(expr)});
+  } else {
+    throw std::runtime_error("Expected '(' after exit");
   }
-
-  return std::make_unique<Node>(NodeExit{std::move(expr)});
 }
 
 std::optional<TypeKeyword>
